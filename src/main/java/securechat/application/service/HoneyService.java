@@ -124,7 +124,7 @@ public class HoneyService
         catch (Exception e)
         {
             //testing
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             return generateFakeMessage(honeyCipher, honeyKey);
         }
     }

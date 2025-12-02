@@ -5,20 +5,19 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
-import securechat.application.dtos.DecryptRequest;
-import securechat.application.dtos.SendMessageRequest;
-import securechat.application.dtos.SendMessageResponse;
+import securechat.application.dtos.*;
 import securechat.application.entity.Message;
-import securechat.application.repo.MessageRepository;
+import securechat.application.entity.MessageEntity;
+
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class MessageService
 {
 
-    @Autowired
-    private  MessageRepository repo;
 
     @Autowired
     private  HoneyService honeyservice;
@@ -26,73 +25,19 @@ public class MessageService
     @Autowired
     private ModelMapper modelmapper;
 
-    public SendMessageResponse send(SendMessageRequest sendmsgreq)
+    public String encryptSingleMessage(EncryptDto encryptdto)
     {
-        String honeycipher = honeyservice.encode(sendmsgreq.getPlaintext(), sendmsgreq.getHoneyKey());
-
-        /*Message msg = Message.builder()
-                .senderId(req.getSenderId())
-                .receiverId(req.getReceiverId())
-                .honeyCipher(cipher)
-                .timestamp(Instant.now().getEpochSecond())
-                .build();
-
-         */
+        String honeycipher = honeyservice.encode(encryptdto.getNormaltext(), encryptdto.getHoneykey());
 
         // creating new message object and filling with the details present in the SendMessageRequest details
         Message message = new Message();
-        //message.setSenderId(sendmsgreq.getSenderId());
-        //message.setReceiverId(sendmsgreq.getReceiverId());
         message.setHoneyCipher(honeycipher);
         message.setTimestamp(Instant.now());
 
-        //test
-        System.out.println(message);
-
-        Message savedmessage = repo.save(message);
-
-        //test
-        System.out.println("message object after saving"+savedmessage);
-
-        SendMessageResponse resp = new SendMessageResponse();
-        resp.setMessageId(message.getId());
-        resp.setHoneyCipher(honeycipher);
-        resp.setTimestamp(message.getTimestamp());
-
-
-       /* try
-        {
-            Message message = modelmapper.map(sendmsgreq , Message.class);
-            message.setHoneyCipher(honeycipher);
-            repo.save(message);
-
-
-            resp.setMessageId(message.getId());
-            resp.setHoneyCipher(honeycipher);
-            resp.setTimestamp(message.getTimestamp());
-        }
-        catch (Exception e)
-        {
-            System.out.println("modelmapper is not working and there is problem in the modelmapper logic change the values in the entity and the dto classes");
-        }
-
-    */
-
-        return resp;
+        return honeycipher;
     }
 
-    public String decrypt(Long messageId, String honeyKey)
-    {
-        Message msg = repo.findById(messageId).orElseThrow();
-
-        System.out.println("decrypted message from the database fetched from the message id "+messageId+"="+msg);
-
-        String decryptedmessage = honeyservice.decode(msg.getHoneyCipher(), honeyKey);
-
-        return decryptedmessage;
-    }
-
-    public String decrypttestwithoutMessageId(DecryptRequest decryptreq)
+    public String decryptSingleEncryptedMessage(DecryptRequest decryptreq)
     {
         String honeykey = decryptreq.getHoneyKey();
         String honeycipher = decryptreq.getHoneyCipher();
@@ -100,5 +45,52 @@ public class MessageService
         String decryptedmessage = honeyservice.decode(honeycipher , honeykey);
 
         return decryptedmessage;
+    }
+
+    public String decryptSingleMsg(String honeycipher , String honeykey)
+    {
+
+        String decryptedmessage = honeyservice.decode(honeycipher , honeykey);
+
+        return decryptedmessage;
+    }
+
+
+    /*public List<String> decryptAllMessages(ListofEncryptedMsgsDto decryptallmsgs)
+    {
+        List<DecryptRequest> allencryptedmessages = decryptallmsgs.getAllencryptedmessages();
+
+        List<String> alldecryptedlistmsgs = new ArrayList<>();
+
+        for(DecryptRequest decryptrequest : allencryptedmessages)
+        {
+            String msgafterdecryption = decryptSingleEncryptedMessage(decryptrequest);
+            alldecryptedlistmsgs.add(msgafterdecryption);
+        }
+
+        return alldecryptedlistmsgs;
+    }*/
+
+    public List<MessageEntity>  ListOfEncryptedMessages(ListofEncryptedMsgsDto decryptallmsgs)
+    {
+        List<MessageEntity> allencryptedmessages = decryptallmsgs.getAllencryptedmessages();
+
+        String honeykey = decryptallmsgs.getHoneykey();
+
+        //List<String> alldecryptedlistmsgs = new ArrayList<>();
+
+        List<MessageEntity> alldecryptedMsgs = new ArrayList<>();
+
+        for(MessageEntity messageentity : allencryptedmessages)
+        {
+            String honeycipher  = messageentity.getContent();
+            String msgafterdecryption = decryptSingleMsg(honeycipher , honeykey);
+           // alldecryptedlistmsgs.add(msgafterdecryption);
+
+            messageentity.setContent(msgafterdecryption);
+            alldecryptedMsgs.add(messageentity);
+        }
+
+        return alldecryptedMsgs;
     }
 }
